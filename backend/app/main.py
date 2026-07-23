@@ -68,13 +68,13 @@ async def run_agent(req: ChatRequest):
     )
 
 
-@app.post("/rag/upload")
+@app.post("/api/rag/upload")
 async def upload_document(file: UploadFile, assistant_id: str = "main"):
     content = await file.read()
-    temp_path = f"/tmp/{file.filename}"
-    with open(temp_path, "wb") as f:
-        f.write(content)
-
+    # Используем временную директорию системы для безопасности
+    with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as tmp:
+        tmp.write(content)
+        temp_path = tmp.name
     try:
         text = parse_file(temp_path)
         rag = RAGEngine(collection_name=f"assistant_{assistant_id}")
@@ -97,11 +97,15 @@ async def get_session(session_id: str):
 
 @app.get("/", response_class=HTMLResponse)
 async def web_ui():
+    """Полезно для от다бке: возвращает старый HTML, если он есть."""
     html_path = os.path.join(os.path.dirname(__file__), "web.html")
+    if os.path.exists(html_path):
     with open(html_path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
+    return HTMLResponse(content="<h1>API is running. No web.html found.</h1>")
 
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
