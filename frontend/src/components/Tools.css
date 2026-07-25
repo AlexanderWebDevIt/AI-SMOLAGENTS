@@ -1,0 +1,158 @@
+.tools-page {
+  padding: 24px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.tools-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.tools-header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #f59e0b;
+}
+
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  flex: 1;
+  overflow-y: auto;
+  align-content: start;
+}
+
+.tool-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  gap: 16px;
+  transition: all 0.2s;
+}
+
+.tool-card:hover {
+  border-color: var(--accent);
+}
+
+.tool-icon {
+  font-size: 32px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.tool-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.tool-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+  font-family: 'Fira Code', monospace;
+}
+
+.tool-desc {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+
+.tool-params {
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.params-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.param-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.param-item:last-child {
+  margin-bottom: 0;
+}
+
+.param-item code {
+  color: var(--accent);
+  font-family: 'Fira Code', monospace;
+}
+
+.param-type {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.param-desc {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.tools-empty {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-dim);
+  padding: 60px;
+}
+
+.tools-empty .empty-icon {
+  font-size: 48px;
+}
+
+.loading {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+  color: var(--text-dim);
+}
+
+@media (max-width: 768px) {
+  .tools-page {
+    padding: 16px;
+  }
+
+  .tools-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tool-card {
+    padding: 16px;
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .tool-icon {
+    margin: 0 auto;
+  }
+}

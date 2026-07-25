@@ -7,6 +7,40 @@ load_dotenv()
 
 DATA_DIR = os.path.join(os.getcwd(), "data")
 ACTIVE_MODEL_FILE = os.path.join(DATA_DIR, "active-model.json")
+PROVIDERS_FILE = os.path.join(DATA_DIR, "providers.json")
+
+DEFAULT_PROVIDERS = {
+    "lmstudio": {
+        "name": "LM Studio",
+        "base_url": "http://localhost:1234/v1",
+        "api_key": "lm-studio",
+        "type": "local"
+    },
+    "openai": {
+        "name": "OpenAI",
+        "base_url": "https://api.openai.com/v1",
+        "api_key": "",
+        "type": "cloud"
+    },
+    "ollama": {
+        "name": "Ollama",
+        "base_url": "http://localhost:11434/v1",
+        "api_key": "ollama",
+        "type": "local"
+    },
+    "together": {
+        "name": "Together AI",
+        "base_url": "https://api.together.xyz/v1",
+        "api_key": "",
+        "type": "cloud"
+    },
+    "openrouter": {
+        "name": "OpenRouter",
+        "base_url": "https://openrouter.ai/api/v1",
+        "api_key": "",
+        "type": "cloud"
+    }
+}
 
 
 def get_lm_studio_url() -> str:
@@ -18,8 +52,9 @@ def get_api_key() -> str:
 
 
 def get_models() -> list:
-    base_url = get_lm_studio_url()
-    api_key = get_api_key()
+    config = get_provider_config()
+    base_url = config.get("base_url", "http://localhost:1234/v1")
+    api_key = config.get("api_key", "lm-studio")
 
     try:
         response = requests.get(
@@ -86,3 +121,53 @@ def test_model(model_id: str) -> dict:
         return {"status": "ok", "reply": reply}
     except Exception as e:
         return {"status": "error", "error": str(e)}
+
+
+def get_providers() -> dict:
+    if os.path.exists(PROVIDERS_FILE):
+        try:
+            with open(PROVIDERS_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return DEFAULT_PROVIDERS
+
+
+def save_providers(providers: dict):
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with open(PROVIDERS_FILE, "w") as f:
+        json.dump(providers, f, indent=2, ensure_ascii=False)
+
+
+def set_provider(provider_id: str, config: dict):
+    providers = get_providers()
+    providers[provider_id] = config
+    save_providers(providers)
+    
+    os.environ["OPENAI_BASE_URL"] = config.get("base_url", "")
+    os.environ["OPENAI_API_KEY"] = config.get("api_key", "")
+
+
+def get_provider_config(provider_id: str = None) -> dict:
+    providers = get_providers()
+    if provider_id:
+        return providers.get(provider_id, {})
+    
+    active_file = os.path.join(DATA_DIR, "active-provider.json")
+    if os.path.exists(active_file):
+        with open(active_file, "r") as f:
+            data = json.load(f)
+            return providers.get(data.get("provider_id", "lmstudio"), {})
+    
+    return providers.get("lmstudio", {})
+
+
+def set_active_provider(provider_id: str):
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with open(os.path.join(DATA_DIR, "active-provider.json"), "w") as f:
+        json.dump({"provider_id": provider_id}, f)
+    
+    config = get_provider_config(provider_id)
+    if config:
+        os.environ["OPENAI_BASE_URL"] = config.get("base_url", "")
+        os.environ["OPENAI_API_KEY"] = config.get("api_key", "")

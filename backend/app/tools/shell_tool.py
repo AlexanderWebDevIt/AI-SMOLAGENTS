@@ -1,0 +1,33 @@
+import subprocess
+import os
+from app.tools.base import BaseTool
+
+
+class BashTool(BaseTool):
+    name = "bash"
+    description = "Execute shell command"
+    parameters = {
+        "command": {"type": "string", "description": "Command to execute"},
+        "timeout": {"type": "integer", "description": "Timeout in seconds", "default": 60},
+    }
+
+    def execute(self, command: str, timeout: int = 60) -> str:
+        try:
+            result = subprocess.run(
+                command,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=os.getcwd(),
+            )
+            output = result.stdout
+            if result.stderr:
+                output += f"\nSTDERR: {result.stderr}"
+            if result.returncode != 0:
+                output += f"\nExit code: {result.returncode}"
+            return output[:5000] if output else "Command executed (no output)"
+        except subprocess.TimeoutExpired:
+            return f"Error: command timed out after {timeout}s"
+        except Exception as e:
+            return f"Error: {e}"

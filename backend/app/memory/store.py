@@ -70,6 +70,20 @@ class MemoryStore:
         row = cursor.fetchone()
         return row[0] if row else None
 
+    def get_unindexed_conversations(self, last_indexed_id: int = 0):
+        cursor = self.conn.execute(
+            "SELECT id, session_id, role, content FROM conversations WHERE id > ? ORDER BY id",
+            (last_indexed_id,),
+        )
+        return cursor.fetchall()
+
+    def get_last_conversation_id(self):
+        cursor = self.conn.execute(
+            "SELECT MAX(id) FROM conversations"
+        )
+        row = cursor.fetchone()
+        return row[0] if row and row[0] else 0
+
     def clear_session(self, session_id: str):
         self.conn.execute(
             "DELETE FROM conversations WHERE session_id = ?", (session_id,)

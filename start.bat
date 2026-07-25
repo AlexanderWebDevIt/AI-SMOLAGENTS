@@ -1,40 +1,53 @@
 @echo off
+cd /d "%~dp0"
+chcp 65001 >nul 2>&1
+
 echo ========================================
-echo    AI Agent - Быстрый старт
+echo    AI Agent - Quick Start
 echo ========================================
 echo.
 
-echo [1/4] Проверка Python...
-python --version
+echo [1/4] Checking Python...
+python --version 2>nul
 if errorlevel 1 (
-    echo ОШИБКА: Python не найден. Установите Python 3.11+
+    echo ERROR: Python not found. Install Python 3.11+
     pause
     exit /b 1
 )
 
 echo.
-echo [2/4] Установка зависимостей...
-cd backend
-pip install -r requirements.txt -q
+echo [2/4] Installing backend dependencies...
+pip install -r backend\requirements.txt -q
 if errorlevel 1 (
-    echo ОШИБКА: Не удалось установить зависимости
+    echo ERROR: Failed to install backend dependencies
     pause
     exit /b 1
 )
 
 echo.
-echo [3/4] Выбор модели...
-python select_model.py
+echo [3/4] Installing frontend dependencies...
+cd frontend
+call npm install --silent 2>nul
+cd ..
 if errorlevel 1 (
-    echo Предупреждение: Ошибка выбора модели
+    echo WARNING: Frontend install failed, skipping frontend
 )
 
 echo.
-echo [4/4] Запуск сервера...
-echo Сервер запустится на http://localhost:8000
-echo API документация: http://localhost:8000/docs
-echo Нажмите Ctrl+C для остановки
+echo [4/4] Starting servers...
 echo.
-python -m uvicorn app.main:app --reload --port 8000
+echo Backend:  http://localhost:8000
+echo Frontend: http://localhost:3000
+echo API docs: http://localhost:8000/docs
+echo.
+echo Press Ctrl+C to stop
+echo.
 
+start "Backend" cmd /c "cd backend && python -m uvicorn app.main:app --reload --port 8000"
+start "Frontend" cmd /c "cd frontend && npm run dev"
+
+timeout /t 3 >nul
+echo.
+echo Both servers started!
+echo.
 pause
