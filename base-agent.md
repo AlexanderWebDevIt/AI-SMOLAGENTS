@@ -47,7 +47,9 @@ AI-smolagents/
 │   │   │   ├── web_tool.py       # WebSearch, HTTP
 │   │   │   ├── memory_tool.py    # RAG, Summarize
 │   │   │   ├── code_tool.py      # CodeExec, Lint
-│   │   │   └── git_tool.py       # Git operations
+│   │   │   ├── git_tool.py       # Git operations
+│   │   │   ├── lsp_tool.py       # Code intelligence & refactoring
+│   │   │   └── hooks_tool.py     # Build/test/lint hooks
 │   │   ├── rag/
 │   │   ├── memory/
 │   │   └── main.py
@@ -106,6 +108,8 @@ class BaseTool:
 | git_operations | Commit, push, diff | Medium |
 | lint | Check code quality | Easy |
 | test_run | Run test suite | Easy |
+| agent_lsp | Code intelligence: hover, goto, references, rename, complete, diagnose, outline | Medium |
+| hooks_mcp | Run build/test/lint hooks: detect, build, test, lint, run | Medium |
 
 ## Implementation Plan
 
@@ -131,7 +135,8 @@ class BaseTool:
 1. Add web_search tool
 2. Add code_exec tool
 3. Add git tools
-4. Create specialized agent profiles
+4. Add agent_lsp tool (code intelligence + safe refactoring)
+5. Create specialized agent profiles
 
 ## Prompt Template
 

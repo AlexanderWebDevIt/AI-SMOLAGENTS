@@ -1,18 +1,40 @@
 import os
+import threading
 from langchain_huggingface import HuggingFaceEmbeddings
 import chromadb
 from langchain_chroma import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+_instances = {}
+_lock = threading.Lock()
+
+
+def get_rag_engine(collection_name: str = "knowledge") -> "RAGEngine":
+    """Get or create a RAGEngine singleton per collection name."""
+    with _lock:
+        if collection_name not in _instances:
+            _instances[collection_name] = RAGEngine(collection_name)
+        return _instances[collection_name]
+
+
+def prewarm_rag():
+    """Pre-initialize the default RAG engine. Call at server startup to avoid
+    slow first request (HuggingFaceEmbeddings model loading takes 10-30s)."""
+    try:
+        get_rag_engine("assistant_main")
+        print("[RAG] Pre-warmed RAG engine")
+    except Exception as e:
+        print(f"[RAG] Pre-warm failed (will retry on first request): {e}")
+
+
 class RAGEngine:
     def __init__(self, collection_name: str = "knowledge"):
         self.available = False
         try:
-            # Мы переходим на локальные эмбеддинги прямо в Python
-            # Модель 'all-MiniLM-L6-v2' — это стандарт индустрии для быстрых и точных локальных RAG
             self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
-            db_path = os.path.join(os.getcwd(), "data", "chroma_db")
+            _backend_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            db_path = os.path.join(_backend_root, "data", "chroma_db")
             os.makedirs(db_path, exist_ok=True)
 
             self.persistent_client = chromadb.PersistentClient(path=db_path)
@@ -22,7 +44,7 @@ class RAGEngine:
                 embedding_function=self.embeddings,
             )
             self.available = True
-            print("[RAG] Система RAG успешно инициализирована (Local Embeddings).")
+            print(f"[RAG] Система RAG инициализирована (коллекция: {collection_name}).")
         except Exception as e:
             print(f"[RAG] Ошибка инициализации: {e}")
             self.vector_store = None
@@ -44,7 +66,6 @@ class RAGEngine:
             return []
         
         try:
-            # Поиск теперь происходит локально через наши HuggingFace эмбеддинги
             return self.vector_store.similarity_search(query, k=k)
         except Exception as e:
             print(f"[RAG] Ошибка поиска: {e}")

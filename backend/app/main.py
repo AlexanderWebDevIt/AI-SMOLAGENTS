@@ -1,14 +1,30 @@
 from fastapi import FastAPI, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse
+import asyncio
+import json
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from app.agent.core import AgentLoop
-from app.rag.engine import RAGEngine
+from app.rag.engine import get_rag_engine
 from app.memory.store import MemoryStore
 from app.rag.parsers import parse_file
+from app.files import save_upload, get_upload_path, delete_upload
+
+# Singleton MemoryStore — avoids leaking SQLite connections
+_memory_store = None
+
+
+def get_memory() -> MemoryStore:
+    global _memory_store
+    if _memory_store is None:
+        _memory_store = MemoryStore()
+    return _memory_store
 from app.models import get_models, get_active_model, set_active_model, get_providers, set_provider, get_provider_config, save_providers, set_active_provider
 import tempfile
 import os
+
+_FRONTEND_DIST = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "frontend", "dist")
 
 app = FastAPI(title="AI Agent API")
 
@@ -20,11 +36,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+if os.path.isdir(_FRONTEND_DIST):
+    app.mount("/assets", StaticFiles(directory=os.path.join(_FRONTEND_DIST, "assets")), name="frontend_assets")
+
 
 class ChatRequest(BaseModel):
     message: str
     session_id: str = "default"
     model: str = None
+    attachments: list = []
 
 
 class ChatResponse(BaseModel):
@@ -32,6 +52,7 @@ class ChatResponse(BaseModel):
     session_id: str
     model: str
     steps: list = []
+    context_info: dict = None
 
 
 class ModelSelectRequest(BaseModel):
@@ -154,17 +175,105 @@ async def list_tools():
     }
 
 
+@app.get("/api/health")
+async def health_check():
+    """Quick health check - always responds immediately."""
+    return {"status": "ok"}
+
+
 @app.post("/api/agent/run", response_model=ChatResponse)
 async def run_agent(req: ChatRequest):
     model = req.model or get_active_model()
     agent = AgentLoop(assistant_id="main", model_override=model)
-    result = agent.run(req.message, session_id=req.session_id)
+    result = agent.run(req.message, session_id=req.session_id, attachments=req.attachments or [])
     return ChatResponse(
         reply=result["result"]["output"],
         session_id=req.session_id,
         model=model,
         steps=result.get("plan", {}).get("steps", []),
+        context_info=result.get("context_info"),
     )
+
+
+@app.post("/api/agent/stream")
+async def stream_agent(req: ChatRequest):
+    queue = asyncio.Queue()
+
+    memory = get_memory()
+    info = memory.get_session_info(req.session_id)
+    if not info:
+        name = (req.message[:50] + "...") if len(req.message) > 50 else req.message
+        memory.create_session(req.session_id, name=name, model=req.model or get_active_model())
+    elif info["name"] == "Новый чат":
+        name = (req.message[:50] + "...") if len(req.message) > 50 else req.message
+        memory.rename_session(req.session_id, name)
+
+    agent_holder = {}
+
+    def on_progress(event: dict):
+        queue.put_nowait(event)
+
+    async def run_agent():
+        model = req.model or get_active_model()
+        loop = asyncio.get_event_loop()
+        agent = AgentLoop(assistant_id="main", model_override=model, on_progress=on_progress)
+        agent_holder["agent"] = agent
+        await loop.run_in_executor(None, agent.run, req.message, req.session_id, req.attachments or [])
+
+    async def event_stream():
+        task = asyncio.create_task(run_agent())
+        try:
+            while True:
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=300)
+                    yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+                    if event.get("stage") == "done":
+                        break
+                except asyncio.TimeoutError:
+                    yield f"data: {json.dumps({'stage': 'error', 'message': 'Превышено время ожидания (5 мин)'})}\n\n"
+                    break
+        except asyncio.CancelledError:
+            pass
+        finally:
+            agent = agent_holder.get("agent")
+            if agent:
+                agent.cancel()
+            task.cancel()
+            try:
+                await task
+            except (asyncio.CancelledError, Exception):
+                pass
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@app.post("/api/upload")
+async def upload_file(file: UploadFile):
+    """Upload a file attachment for chat (image, text, document)."""
+    content = await file.read()
+    try:
+        meta = save_upload(content, file.filename or "unnamed")
+        return {"status": "ok", "file": meta}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка сохранения файла: {e}")
+
+
+@app.get("/api/files/{file_id}")
+async def get_file(file_id: str):
+    """Return an uploaded file (image preview or download)."""
+    path = get_upload_path(file_id)
+    if not path:
+        raise HTTPException(status_code=404, detail="Файл не найден")
+    return FileResponse(path)
+
+
+@app.delete("/api/files/{file_id}")
+async def delete_file(file_id: str):
+    """Delete an uploaded file."""
+    delete_upload(file_id)
+    return {"status": "ok"}
 
 
 @app.post("/api/rag/upload")
@@ -176,7 +285,7 @@ async def upload_document(file: UploadFile, assistant_id: str = "main"):
         temp_path = tmp.name
     try:
         text = parse_file(temp_path)
-        rag = RAGEngine(collection_name=f"assistant_{assistant_id}")
+        rag = get_rag_engine(collection_name=f"assistant_{assistant_id}")
         rag.add_document(text, {"source": file.filename})
         chunks_count = len(text) // 1000
         return {"status": "ok", "filename": file.filename, "chunks": chunks_count}
@@ -187,27 +296,58 @@ async def upload_document(file: UploadFile, assistant_id: str = "main"):
             os.unlink(temp_path)
 
 
+class RenameRequest(BaseModel):
+    name: str
+
+
 @app.get("/api/sessions")
 async def list_sessions():
-    memory = MemoryStore()
+    memory = get_memory()
     sessions = memory.get_all_sessions()
     return {"sessions": sessions}
 
 
+@app.post("/api/sessions")
+async def create_session():
+    import uuid
+    session_id = str(uuid.uuid4())
+    model = get_active_model()
+    memory = get_memory()
+    info = memory.create_session(session_id, model=model)
+    return {"session": info}
+
+
 @app.get("/api/sessions/{session_id}")
 async def get_session(session_id: str):
-    memory = MemoryStore()
+    memory = get_memory()
+    info = memory.get_session_info(session_id)
+    if not info:
+        raise HTTPException(status_code=404, detail=f"Сессия не найдена")
     history = memory.get_recent(session_id, k=50)
     summary = memory.get_summary(session_id)
-    return {"session_id": session_id, "messages": history, "summary": summary}
+    return {"session": info, "messages": history, "summary": summary}
+
+
+@app.post("/api/sessions/{session_id}/rename")
+async def rename_session(session_id: str, req: RenameRequest):
+    memory = get_memory()
+    memory.rename_session(session_id, req.name)
+    return {"status": "ok"}
+
+
+@app.delete("/api/sessions/{session_id}")
+async def delete_session(session_id: str):
+    memory = get_memory()
+    memory.delete_session(session_id)
+    return {"status": "ok"}
 
 
 @app.post("/api/rag/reindex")
 async def reindex_conversations(assistant_id: str = "main"):
-    memory = MemoryStore()
-    rag = RAGEngine(collection_name=f"assistant_{assistant_id}")
+    memory = get_memory()
+    rag = get_rag_engine(collection_name=f"assistant_{assistant_id}")
     
-    last_id_file = os.path.join(os.getcwd(), "data", "last_rag_index_id.txt")
+    last_id_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "last_rag_index_id.txt")
     last_indexed_id = 0
     if os.path.exists(last_id_file):
         with open(last_id_file, "r") as f:
@@ -245,15 +385,28 @@ async def reindex_conversations(assistant_id: str = "main"):
 
 @app.get("/", response_class=HTMLResponse)
 async def web_ui():
-    """Полезно для от다бке: возвращает старый HTML, если он есть."""
+    index_path = os.path.join(_FRONTEND_DIST, "index.html")
+    if os.path.exists(index_path):
+        with open(index_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
     html_path = os.path.join(os.path.dirname(__file__), "web.html")
     if os.path.exists(html_path):
         with open(html_path, "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
-    return HTMLResponse(content="<h1>API is running. No web.html found.</h1>")
+    return HTMLResponse(content="<h1>API is running. Build frontend with: cd frontend && npm run build</h1>")
+
+
+def start_server():
+    # Pre-warm RAG engine to avoid slow first request
+    try:
+        from app.rag.engine import prewarm_rag
+        prewarm_rag()
+    except Exception:
+        pass
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000, workers=1)
 
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    start_server()
 

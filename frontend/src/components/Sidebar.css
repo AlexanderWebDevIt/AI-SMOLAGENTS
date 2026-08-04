@@ -122,6 +122,80 @@
   white-space: nowrap;
 }
 
+.sessions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.session-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  position: relative;
+}
+
+.session-item:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+.session-item.active {
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.session-name {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-model {
+  font-size: 10px;
+  color: var(--text-dim);
+  background: rgba(255,255,255,0.06);
+  padding: 1px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.session-delete {
+  opacity: 0;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0 4px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.session-item:hover .session-delete {
+  opacity: 1;
+}
+
+.session-delete:hover {
+  color: #ef4444;
+}
+
+.session-rename-input {
+  flex: 1;
+  background: var(--card-bg);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  outline: none;
+}
+
 @media (max-width: 768px) {
   .sidebar {
     position: fixed;

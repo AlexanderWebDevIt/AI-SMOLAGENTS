@@ -4,6 +4,18 @@ import './Settings.css'
 
 const API_URL = 'http://localhost:8000'
 
+const fetchWithTimeout = (url, options = {}, timeout = 10000) => {
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), timeout)
+  return fetch(url, { ...options, signal: controller.signal }).then(res => {
+    clearTimeout(id)
+    return res
+  }).catch(err => {
+    clearTimeout(id)
+    throw err
+  })
+}
+
 export default function Settings({ onBack }) {
   const [providers, setProviders] = useState({})
   const [activeProvider, setActiveProvider] = useState(null)
@@ -21,14 +33,14 @@ export default function Settings({ onBack }) {
 
   const loadSettings = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/settings`)
+      const res = await fetchWithTimeout(`${API_URL}/api/settings`, {}, 15000)
       const data = await res.json()
       setProviders(data.providers || {})
       setActiveProvider(data.active_provider || null)
       setModels(data.models || [])
       setActiveModel(data.active_model || '')
     } catch (e) {
-      console.error('Failed to load settings')
+      setMessage('Ошибка загрузки настроек: сервер недоступен')
     }
   }
 
@@ -36,46 +48,54 @@ export default function Settings({ onBack }) {
     setLoading(true)
     setMessage('')
     try {
-      const res = await fetch(`${API_URL}/api/providers/save`, {
+      const res = await fetchWithTimeout(`${API_URL}/api/providers/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider_id: editingProvider, ...formData }),
-      })
+      }, 15000)
       if (res.ok) {
         setMessage('Провайдер сохранён')
         setEditingProvider(null)
-        loadSettings()
+        await loadSettings()
+      } else {
+        const err = await res.text().catch(() => '')
+        setMessage('Ошибка сохранения: ' + err.slice(0, 100))
       }
     } catch (e) {
-      setMessage('Ошибка сохранения')
+      setMessage('Ошибка сохранения: сервер недоступен')
     }
     setLoading(false)
   }
 
   const handleSelectProvider = async (providerId) => {
     setLoading(true)
+    setMessage('')
     try {
-      const res = await fetch(`${API_URL}/api/providers/select`, {
+      const res = await fetchWithTimeout(`${API_URL}/api/providers/select`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider_id: providerId }),
-      })
+      }, 15000)
       if (res.ok) {
         const data = await res.json()
         setActiveProvider(data.config)
         setMessage(`Активный провайдер: ${data.config.name}`)
-        loadSettings()
+        await loadSettings()
+      } else {
+        const err = await res.text().catch(() => '')
+        setMessage('Ошибка выбора провайдера: ' + err.slice(0, 100))
       }
     } catch (e) {
-      setMessage('Ошибка выбора провайдера')
+      setMessage('Ошибка выбора провайдера: сервер недоступен')
     }
     setLoading(false)
   }
 
   const handleSelectModel = async (modelId) => {
     setLoading(true)
+    setMessage('')
     try {
-      const res = await fetch(`${API_URL}/api/models/select`, {
+      const res = await fetchWithTimeout(`${API_URL}/api/models/select`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model_id: modelId }),
@@ -83,9 +103,12 @@ export default function Settings({ onBack }) {
       if (res.ok) {
         setActiveModel(modelId)
         setMessage(`Выбрана модель: ${modelId}`)
+      } else {
+        const err = await res.text().catch(() => '')
+        setMessage('Ошибка выбора модели: ' + err.slice(0, 100))
       }
     } catch (e) {
-      setMessage('Ошибка выбора модели')
+      setMessage('Ошибка выбора модели: сервер недоступен')
     }
     setLoading(false)
   }
@@ -94,8 +117,9 @@ export default function Settings({ onBack }) {
     const modelId = prompt('Введите ID модели:')
     if (!modelId) return
     setLoading(true)
+    setMessage('')
     try {
-      const res = await fetch(`${API_URL}/api/models/select`, {
+      const res = await fetchWithTimeout(`${API_URL}/api/models/select`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model_id: modelId }),
@@ -103,9 +127,12 @@ export default function Settings({ onBack }) {
       if (res.ok) {
         setActiveModel(modelId)
         setMessage(`Установлена модель: ${modelId}`)
+      } else {
+        const err = await res.text().catch(() => '')
+        setMessage('Ошибка: ' + err.slice(0, 100))
       }
     } catch (e) {
-      setMessage('Ошибка')
+      setMessage('Ошибка: сервер недоступен')
     }
     setLoading(false)
   }
@@ -130,18 +157,21 @@ export default function Settings({ onBack }) {
   const handleDeleteProvider = async (providerId) => {
     if (!confirm('Удалить провайдер?')) return
     setLoading(true)
+    setMessage('')
     try {
-      const res = await fetch(`${API_URL}/api/providers/save`, {
+      const res = await fetchWithTimeout(`${API_URL}/api/providers/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider_id: '__delete__', name: providerId }),
-      })
+      }, 15000)
       if (res.ok) {
         setMessage('Провайдер удалён')
-        loadSettings()
+        await loadSettings()
+      } else {
+        setMessage('Ошибка удаления')
       }
     } catch (e) {
-      setMessage('Ошибка удаления')
+      setMessage('Ошибка удаления: сервер недоступен')
     }
     setLoading(false)
   }

@@ -97,6 +97,161 @@
   color: var(--accent);
 }
 
+.agent-progress {
+  padding: 12px 24px 10px;
+  background: var(--card-bg);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progress-current {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.progress-icon {
+  font-size: 20px;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(107, 114, 128, 0.12);
+  flex-shrink: 0;
+  animation: icon-pulse 2s ease-in-out infinite;
+}
+
+.progress-icon.rag_search,
+.progress-icon.memory,
+.progress-icon.build_prompt {
+  background: rgba(139, 92, 246, 0.15);
+}
+
+.progress-icon.thinking {
+  background: rgba(245, 158, 11, 0.18);
+}
+
+.progress-icon.tool {
+  background: rgba(16, 185, 129, 0.18);
+}
+
+.progress-icon.task {
+  background: rgba(236, 72, 153, 0.15);
+}
+
+.progress-icon.generating {
+  background: rgba(34, 197, 94, 0.18);
+}
+
+.progress-icon.connecting {
+  background: rgba(99, 102, 241, 0.15);
+}
+
+.progress-icon.done {
+  background: rgba(34, 197, 94, 0.15);
+  animation: none;
+}
+
+.progress-icon.error {
+  background: rgba(239, 68, 68, 0.15);
+  animation: none;
+}
+
+@keyframes icon-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+.progress-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.stop-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.stop-btn:hover {
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.stop-btn:active {
+  transform: scale(0.92);
+}
+
+.progress-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  display: block;
+}
+
+.progress-detail {
+  font-size: 12px;
+  color: var(--text-dim);
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.progress-recent {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.recent-step {
+  font-size: 12px;
+  opacity: 0.45;
+  transition: opacity 0.2s;
+  cursor: default;
+}
+
+.recent-step:hover {
+  opacity: 1;
+}
+
+.progress-bar {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent, #f59e0b);
+  border-radius: 2px;
+  animation: progress-indeterminate 1.5s ease-in-out infinite;
+  width: 40%;
+}
+
+@keyframes progress-indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
 .messages::-webkit-scrollbar {
   width: 6px;
 }

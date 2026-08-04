@@ -1,17 +1,20 @@
 import subprocess
-import os
 from app.tools.base import BaseTool
+from app.config import PROJECT_ROOT, is_bash_command_allowed
 
 
 class BashTool(BaseTool):
     name = "bash"
-    description = "Execute shell command"
+    description = "Execute shell command in project root (read-only git, no destructive ops)"
     parameters = {
         "command": {"type": "string", "description": "Command to execute"},
         "timeout": {"type": "integer", "description": "Timeout in seconds", "default": 60},
     }
 
     def execute(self, command: str, timeout: int = 60) -> str:
+        allowed, reason = is_bash_command_allowed(command)
+        if not allowed:
+            return f"Error: {reason}"
         try:
             result = subprocess.run(
                 command,
@@ -19,7 +22,7 @@ class BashTool(BaseTool):
                 capture_output=True,
                 text=True,
                 timeout=timeout,
-                cwd=os.getcwd(),
+                cwd=PROJECT_ROOT,
             )
             output = result.stdout
             if result.stderr:

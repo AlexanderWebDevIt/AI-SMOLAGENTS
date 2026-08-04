@@ -18,3 +18,4 @@ requests>=2.31.0
 beautifulsoup4>=4.12.0
 sentence-transformers
 langchain-huggingface
+jedi>=0.19.0

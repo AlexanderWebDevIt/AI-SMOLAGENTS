@@ -4,6 +4,18 @@ import './Documents.css'
 
 const API_URL = 'http://localhost:8000'
 
+const fetchWithTimeout = (url, options = {}, timeout = 5000) => {
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), timeout)
+  return fetch(url, { ...options, signal: controller.signal }).then(res => {
+    clearTimeout(id)
+    return res
+  }).catch(err => {
+    clearTimeout(id)
+    throw err
+  })
+}
+
 const DOCUMENTS = [
   { id: 'readme', name: 'Passport.md', path: 'Passport.md' },
   { id: 'base-agent', name: 'base-agent.md', path: 'base-agent.md' },
@@ -18,7 +30,7 @@ const Documents = ({ onBack }) => {
     setSelectedDoc(doc)
     setLoading(true)
     try {
-      const res = await fetch(`${API_URL}/api/documents/${doc.id}`)
+      const res = await fetchWithTimeout(`${API_URL}/api/documents/${doc.id}`)
       const data = await res.json()
       setContent(data.content || 'Файл не найден')
     } catch (e) {

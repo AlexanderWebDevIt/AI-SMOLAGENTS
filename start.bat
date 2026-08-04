@@ -43,7 +43,7 @@ echo.
 echo Press Ctrl+C to stop
 echo.
 
-start "Backend" cmd /c "cd backend && python -m uvicorn app.main:app --reload --port 8000"
+start "Backend" cmd /c "cd backend && python -m uvicorn app.main:app --reload --port 8000 --workers 2"
 start "Frontend" cmd /c "cd frontend && npm run dev"
 
 timeout /t 3 >nul

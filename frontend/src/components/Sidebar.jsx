@@ -7,10 +7,14 @@ const Sidebar = ({
   activeSession,
   onSessionSelect,
   onNewSession,
+  onRenameSession,
+  onDeleteSession,
   currentPage,
   onPageChange
 }) => {
   const [isOpen, setIsOpen] = useState(true)
+  const [editingId, setEditingId] = useState(null)
+  const [editName, setEditName] = useState('')
 
   const navItems = [
     { id: 'chat', icon: '💬', label: 'Чат' },
@@ -18,6 +22,23 @@ const Sidebar = ({
     { id: 'tools', icon: '🔧', label: 'Инструменты' },
     { id: 'settings', icon: '⚙️', label: 'Настройки' },
   ]
+
+  const handleDoubleClick = (s) => {
+    setEditingId(s.id)
+    setEditName(s.name)
+  }
+
+  const handleRename = (id) => {
+    if (editName.trim()) {
+      onRenameSession(id, editName.trim())
+    }
+    setEditingId(null)
+  }
+
+  const shortName = (name) => {
+    if (!name || name === 'Новый чат') return 'Новый чат'
+    return name.length > 28 ? name.slice(0, 28) + '…' : name
+  }
 
   return (
     <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
@@ -32,11 +53,7 @@ const Sidebar = ({
             <span className="logo-icon">AI</span>
           </div>
         )}
-        <Button
-          variant="ghost"
-          onClick={() => setIsOpen(!isOpen)}
-          className="menu-toggle"
-        >
+        <Button variant="ghost" onClick={() => setIsOpen(!isOpen)} className="menu-toggle">
           {isOpen ? '◀' : '▶'}
         </Button>
       </div>
@@ -59,21 +76,46 @@ const Sidebar = ({
       {isOpen && (
         <div className="sidebar-sessions">
           <div className="sessions-header">
-            <span>Сессии</span>
-            <Button variant="primary" size="sm" onClick={onNewSession}>
-              +
-            </Button>
+            <span>Чаты</span>
+            <Button variant="primary" size="sm" onClick={onNewSession}>+</Button>
           </div>
-          {sessions.map(s => (
-            <Button
-              key={s}
-              variant={s === activeSession ? 'active' : 'ghost'}
-              onClick={() => onSessionSelect(s)}
-              className="session-item"
-            >
-              {s}
-            </Button>
-          ))}
+          <div className="sessions-list">
+            {sessions.map(s => (
+              <div
+                key={s.id}
+                className={`session-item ${s.id === activeSession?.id ? 'active' : ''}`}
+                onClick={() => onSessionSelect(s)}
+              >
+                {editingId === s.id ? (
+                  <input
+                    className="session-rename-input"
+                    value={editName}
+                    onChange={e => setEditName(e.target.value)}
+                    onBlur={() => handleRename(s.id)}
+                    onKeyDown={e => e.key === 'Enter' && handleRename(s.id)}
+                    autoFocus
+                    onClick={e => e.stopPropagation()}
+                  />
+                ) : (
+                  <>
+                    <span
+                      className="session-name"
+                      onDoubleClick={(e) => { e.stopPropagation(); handleDoubleClick(s) }}
+                      title={s.name}
+                    >
+                      {shortName(s.name)}
+                    </span>
+                    <span className="session-model">{s.model ? s.model.split('/').pop() : ''}</span>
+                    <button
+                      className="session-delete"
+                      onClick={(e) => { e.stopPropagation(); if (confirm('Удалить чат?')) onDeleteSession(s.id) }}
+                      title="Удалить чат"
+                    >×</button>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </aside>

@@ -4,6 +4,18 @@ import './Tools.css'
 
 const API_URL = 'http://localhost:8000'
 
+const fetchWithTimeout = (url, options = {}, timeout = 5000) => {
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), timeout)
+  return fetch(url, { ...options, signal: controller.signal }).then(res => {
+    clearTimeout(id)
+    return res
+  }).catch(err => {
+    clearTimeout(id)
+    throw err
+  })
+}
+
 const Tools = ({ onBack }) => {
   const [tools, setTools] = useState([])
   const [loading, setLoading] = useState(false)
@@ -15,7 +27,7 @@ const Tools = ({ onBack }) => {
   const loadTools = async () => {
     setLoading(true)
     try {
-      const res = await fetch(`${API_URL}/api/tools`)
+      const res = await fetchWithTimeout(`${API_URL}/api/tools`)
       const data = await res.json()
       setTools(data.tools || [])
     } catch (e) {

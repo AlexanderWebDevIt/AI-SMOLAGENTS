@@ -1,90 +1,237 @@
 import json
 import os
+import re
+import time
 from openai import OpenAI
-from app.rag.engine import RAGEngine
+from app.rag.engine import get_rag_engine
 from app.memory.store import MemoryStore
+from app.files import read_text_file, get_file_metadata
 from app.models import get_active_model, get_provider_config
 from app.tools import get_tools, get_tool, tools_to_prompt
+from app.agent.planner import Planner
 
 
 class AgentLoop:
-    def __init__(self, assistant_id: str, max_steps: int = 10, model_override: str = None):
+    def __init__(self, assistant_id: str, max_steps: int = 25, model_override: str = None, on_progress: callable = None):
         self.assistant_id = assistant_id
         self.max_steps = max_steps
-        self._init_client()
         self.model = model_override or get_active_model()
-        self.rag = RAGEngine(collection_name=f"assistant_{assistant_id}")
+        self._init_client()
+        self.rag = get_rag_engine(collection_name=f"assistant_{assistant_id}")
         self.memory = MemoryStore()
+        self.planner = Planner()
+        self.on_progress = on_progress
+        self.cancelled = False
+
+    def cancel(self):
+        self.cancelled = True
+
+    def _progress(self, stage: str, message: str = "", **extra):
+        if self.on_progress:
+            self.on_progress({"stage": stage, "message": message, **extra})
 
     def _init_client(self):
         config = get_provider_config()
         self.client = OpenAI(
             base_url=config.get("base_url", "http://localhost:1234/v1"),
             api_key=config.get("api_key", "lm-studio"),
+            timeout=600.0,
+            max_retries=0,
         )
 
-    def run(self, user_message: str, session_id: str = "default") -> dict:
+    def run(self, user_message: str, session_id: str = "default", attachments: list = None) -> dict:
         self._init_client()
-        self.model = get_active_model()
+        # Сохраняем model_override если он был задан, иначе берём активную
+        if not self.model:
+            self.model = get_active_model()
 
-        context_chunks = self.rag.search(user_message, k=5)
-        chat_history = self.memory.get_recent(session_id, k=20)
-        summary = self.memory.get_summary(session_id)
+        if not self.model:
+            return {"plan": {"steps": []}, "result": {"output": "Ошибка: модель не выбрана. Перейдите в настройки и выберите модель.", "steps": []}}
 
-        system_prompt = self._build_system_prompt(context_chunks, chat_history, summary)
+        self._progress("rag_search", "Поиск в базе знаний...")
+        try:
+            all_chunks = self.rag.search(user_message, k=5)
+            context_chunks = [c for c in all_chunks if c.metadata.get("source") != "conversation" or c.metadata.get("session_id") == session_id]
+        except Exception:
+            context_chunks = []
+
+        self._progress("memory", "Загрузка истории диалога...")
+        try:
+            chat_history = self.memory.get_recent(session_id, k=20)
+        except Exception:
+            chat_history = []
+
+        try:
+            summary = self.memory.get_summary(session_id)
+        except Exception:
+            summary = None
+
+        self._progress("memory", "Загрузка кросс-сессионной памяти...")
+        try:
+            cross_memory = self.memory.get_cross_session_memory(exclude_session_id=session_id, k=10)
+        except Exception:
+            cross_memory = []
+
+        self._progress("build_prompt", "Формирование промпта...")
+
+        # Обработка вложенных файлов (attachments)
+        attachment_texts = []
+        if attachments:
+            self._progress("file", "Обработка вложенных файлов...", count=len(attachments))
+            for att in attachments:
+                att_id = att.get("id") if isinstance(att, dict) else att
+                if not att_id:
+                    continue
+                meta = get_file_metadata(att_id)
+                if not meta:
+                    continue
+                text = read_text_file(att_id, max_chars=6000)
+                if text:
+                    attachment_texts.append("--- Файл: " + meta["filename"] + " ---\n" + text)
+
+        system_prompt = self._build_system_prompt(context_chunks, chat_history, summary, cross_memory, attachment_texts)
+
+        user_content = user_message
+        if attachment_texts:
+            user_content = user_message + "\n\nПРИЛОЖЕННЫЕ ФАЙЛЫ:\n\n" + "\n\n".join(attachment_texts)
 
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_message},
+            {"role": "user", "content": user_content},
         ]
 
+        # Сохраняем сообщение пользователя в БД. Оно попадёт в history при следующем запросе
+        # через get_recent -> system_prompt. В текущий запрос оно уже в messages list.
+        try:
+            self.memory.save_message(session_id, "user", user_message)
+        except Exception as e:
+            print(f"[Memory] Ошибка сохранения сообщения пользователя: {e}")
+
         steps = []
+        task_id = None
+        reply = ""
+        clean_reply = ""
+        step = 0
+
         for step in range(self.max_steps):
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=0.7,
-            )
-            reply = response.choices[0].message.content
+            if self.cancelled:
+                reply = "❌ Генерация остановлена пользователем."
+                clean_reply = reply
+                self._progress("done", "Остановлено пользователем", reply=reply)
+                break
+
+            self._progress("thinking", f"Запрос к модели (шаг {step + 1}/{self.max_steps})...", step=step + 1)
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    temperature=0.7,
+                )
+                reply = response.choices[0].message.content or ""
+            except Exception as e:
+                error_msg = str(e)
+                if "Connection" in error_msg or "connect" in error_msg.lower():
+                    reply = f"Ошибка соединения с провайдером. Проверьте:\n1. Запущен ли сервер модели ({get_provider_config().get('name', '?')})\n2. Доступен ли endpoint: {get_provider_config().get('base_url', '?')}\n\nТехническая ошибка: {error_msg[:200]}"
+                elif "timeout" in error_msg.lower():
+                    reply = f"Ошибка: время ожидания ответа от модели истекло. Попробуйте ещё раз."
+                else:
+                    reply = f"Ошибка при запросе к модели: {error_msg[:300]}"
+                break
+
+            if not reply:
+                reply = "Ассистент не дал ответа."
+                break
+
+            clean_text = re.sub(r'\[TOOL:\s*\w+\(.*?\)\]', '', reply, flags=re.DOTALL)
+            clean_text = re.sub(r'\[TASK:\s*.*?\]', '', clean_text, flags=re.DOTALL)
+            clean_text = clean_text.strip()
+            if clean_text:
+                clean_reply = clean_text
 
             tool_call = self._parse_tool_call(reply)
+            create_task_match = self._parse_task_creation(reply)
+
+            if create_task_match:
+                task_description = create_task_match["description"]
+                parent_id = create_task_match.get("parent_id")
+                task = self.planner.create_task(task_description, parent_id)
+                task_id = task.id
+                self._progress("task", f"Создана задача: {task_description}")
+                messages.append({"role": "assistant", "content": reply})
+                messages.append({"role": "user", "content": f"Task created successfully: {task.description}"})
+                continue
+
             if not tool_call:
+                self._progress("generating", "Формирование ответа...")
                 break
 
             tool_name = tool_call["tool"]
             tool_args = tool_call["args"]
             tool = get_tool(tool_name)
 
+            self._progress("tool", f"Выполнение инструмента: {tool_name}", tool=tool_name, args=tool_args)
             if tool:
-                result = tool.execute(**tool_args)
-                steps.append({"tool": tool_name, "args": tool_args, "result": result[:500]})
-                messages.append({"role": "assistant", "content": reply})
-                messages.append({"role": "user", "content": f"Tool result:\n{result[:3000]}"})
+                try:
+                    result = tool.execute(**tool_args)
+                    steps.append({"tool": tool_name, "args": tool_args.copy(), "result": result[:500]})
+                    messages.append({"role": "assistant", "content": reply})
+                    messages.append({"role": "user", "content": f"Tool result:\n{result[:3000]}"})
+                    if task_id and tool_name != "task_update":
+                        self.planner.update_task(task_id, steps=[f"{tool_name}({json.dumps(tool_args)})"])
+                except Exception as e:
+                    messages.append({"role": "assistant", "content": reply})
+                    messages.append({"role": "user", "content": f"Tool '{tool_name}' error: {e}"})
             else:
                 messages.append({"role": "assistant", "content": reply})
                 messages.append({"role": "user", "content": f"Tool '{tool_name}' not found. Try another tool or answer directly."})
 
-        final_output = reply
+        final_output = clean_reply or reply
 
-        self.memory.save_message(session_id, "user", user_message)
-        self.memory.save_message(session_id, "assistant", final_output)
+        # Собираем информацию о контексте для отладки
+        context_info = {
+            "rag_chunks": len(context_chunks),
+            "history_count": len(chat_history),
+            "cross_memory_count": len(cross_memory),
+            "summary": summary[:500] if summary else None,
+            "system_prompt": system_prompt[:1000],
+        }
+        self._progress("context_info", "Контекст загружен", data=context_info)
 
-        conversation_text = f"[Сессия: {session_id}] Пользователь: {user_message}\nАссистент: {final_output}"
-        self.rag.add_document(conversation_text, {"source": "conversation", "session_id": session_id})
+        try:
+            self.memory.save_message(session_id, "assistant", final_output, metadata=json.dumps({"context_info": context_info}, ensure_ascii=False))
+        except Exception as e:
+            print(f"[Memory] Ошибка сохранения ответа ассистента: {e}")
 
-        history = self.memory.get_recent(session_id, k=100)
-        if len(history) % 10 == 0 and len(history) >= 10:
-            self._summarize(session_id, history)
+        self._progress("done", "Ответ готов", reply=final_output)
+
+        try:
+            conversation_text = f"[Сессия: {session_id}] Пользователь: {user_message}\nАссистент: {final_output}"
+            self.rag.add_document(conversation_text, {"source": "conversation", "session_id": session_id})
+        except Exception:
+            pass
+
+        try:
+            self._save_memory_entry(session_id, f"Вопрос/задача: {user_message[:150]}\nОтвет/решение: {final_output[:250]}")
+        except Exception:
+            pass
+
+        try:
+            history = self.memory.get_recent(session_id, k=100)
+            if len(history) >= 10 and len(history) % 10 == 0:
+                self._summarize(session_id, history)
+        except Exception:
+            pass
 
         return {
             "plan": {"steps": steps},
-            "result": {"output": final_output, "steps": steps}
+            "result": {"output": final_output, "steps": steps},
+            "context_info": context_info,
         }
 
-    def _build_system_prompt(self, context: list, history: list, summary: str = None) -> str:
+    def _build_system_prompt(self, context: list, history: list, summary: str = None, cross_memory: list = None, attachment_texts: list = None) -> str:
         tools_desc = tools_to_prompt()
 
-        prompt = f"""Ты — ИИ-ассистент с доступом к инструментам.
+        prompt = f"""Ты — ИИ-ассистент с доступом к инструментам и долговременной памятью о прошлых диалогах.
 
 ДОСТУПНЫЕ ИНСТРУМЕНТЫ:
 {tools_desc}
@@ -92,12 +239,28 @@ class AgentLoop:
 ПРАВИЛА:
 1. Если нужен инструмент, вызови его через формат: [TOOL: имя_инструмента(args)]
 2. Примеры вызова:
-   - [TOOL: read(file_path="src/main.py")]
-   - [TOOL: bash(command="ls -la")]
-   - [TOOL: grep(pattern="def.*error", path="src", include="*.py")]
+   - [TOOL: read(file_path="backend/app/main.py")]
+   - [TOOL: bash(command="dir /b")]
+   - [TOOL: grep(pattern="def.*error", path="backend", include="*.py")]
 3. Если инструмент не нужен — отвечай сразу
 4. Не выдумывай результаты инструментов — всегда вызывай их
 5. Отвечай на языке пользователя
+
+СИСТЕМНАЯ ИНФОРМАЦИЯ:
+- ОС: Windows (не Linux; команды: dir, type, python, cd)
+- Пути файлов указываются от корня проекта
+- Для bash используй powershell-команды (dir, type, gc)
+- Запрещено: git push, rm -rf, format, shutdown
+
+ЗАДАЧИ:
+- Следуй процессу планирования: создавай задачи, разбивай сложные задачи на шаги
+- Используй инструменты для выполнения действий
+- Веди учет выполненных задач и их результатов
+
+ПОДСКАЗКИ:
+- Если пользователь просит что-то сделать — сначала определи, нужно ли создать новую задачу или работать с существующей
+- Для сложных задач используй метод декомпозиции: разбей на подзадачи и выполните их по шагам
+
 """
 
         if summary:
@@ -122,6 +285,16 @@ class AgentLoop:
             for h in history[-10:]:
                 prompt += f"{h['role']}: {h['content'][:200]}\n"
 
+        if cross_memory:
+            prompt += "\n### ПАМЯТЬ ИЗ ДРУГИХ СЕССИЙ (ключевые факты из прошлых диалогов, используй их):\n"
+            for m in cross_memory:
+                prompt += f"- {m['content'][:300]}\n"
+
+        if attachment_texts:
+            prompt += "\n### ПРИЛОЖЕННЫЕ ФАЙЛЫ (переданы пользователем в этом сообщении):\n"
+            for t in attachment_texts:
+                prompt += f"- {t[:200]}...\n"
+
         return prompt
 
     def _parse_tool_call(self, text: str):
@@ -134,15 +307,36 @@ class AgentLoop:
         args_str = match.group(2)
 
         args = {}
-        for pair in args_str.split(","):
-            pair = pair.strip()
-            if "=" in pair:
-                key, val = pair.split("=", 1)
-                key = key.strip()
-                val = val.strip().strip('"').strip("'")
+        for m in re.finditer(r'(\w+)\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^,\s)]+))', args_str):
+            key = m.group(1)
+            val = m.group(2) or m.group(3) or m.group(4)
+            try:
+                args[key] = int(val)
+            except ValueError:
                 args[key] = val
 
         return {"tool": tool_name, "args": args}
+
+    def _parse_task_creation(self, text: str):
+        import re
+        match = re.search(r'\[TASK:\s*(.+?)\]', text, re.DOTALL)
+        if not match:
+            return None
+        description = match.group(1).strip()
+        parent_match = re.search(r'parent\s*=\s*(\w+)', description, re.IGNORECASE)
+        parent_id = parent_match.group(1) if parent_match else None
+        return {"description": description, "parent_id": parent_id}
+
+    def _save_memory_entry(self, session_id: str, content: str):
+        """Save a cross-session memory entry, skipping near-duplicates."""
+        try:
+            existing = self.memory.get_cross_session_memory(exclude_session_id=None, k=50)
+            for m in existing:
+                if content[:100] in m["content"] or m["content"][:100] in content:
+                    return
+            self.memory.save_cross_session_memory(session_id, content)
+        except Exception as e:
+            print(f"[Memory] Ошибка сохранения памяти: {e}")
 
     def _summarize(self, session_id: str, history: list):
         try:
@@ -155,9 +349,11 @@ class AgentLoop:
                 ],
                 temperature=0.3,
                 max_tokens=300,
+                timeout=30,
             )
             summary = response.choices[0].message.content
             self.memory.save_summary(session_id, summary)
+            self.memory.save_cross_session_memory(session_id, summary)
             print(f"[Memory] Сессия {session_id} суммаризирована")
         except Exception as e:
             print(f"[Memory] Ошибка суммаризации: {e}")
