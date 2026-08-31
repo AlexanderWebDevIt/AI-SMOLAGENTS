@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Agent — голографический интерфейс</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="mode-holo">
+
+<div class="scene"></div>
+<canvas id="sparks" class="sparks-layer"></canvas>
+
+<div class="stage-wrap">
+  <div class="holo-stage">
+    <div class="scanlines"></div>
+    <div class="sheen"></div>
+
+    <div class="app">
+
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-badge">AI</span>
+          <span class="brand-name">AI Agent</span>
+        </div>
+
+        <nav class="nav">
+          <button class="nav-item active">
+            <svg viewBox="0 0 24 24" class="ico"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span>Чат</span>
+          </button>
+          <button class="nav-item">
+            <svg viewBox="0 0 24 24" class="ico"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+            <span>Документы</span>
+          </button>
+          <button class="nav-item">
+            <svg viewBox="0 0 24 24" class="ico"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+            <span>Инструменты</span>
+          </button>
+          <button class="nav-item">
+            <svg viewBox="0 0 24 24" class="ico"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6 1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>Настройки</span>
+          </button>
+        </nav>
+
+        <div class="sessions-head">
+          <span>ЧАТЫ</span>
+          <button class="sessions-add" title="Новый чат">+</button>
+        </div>
+
+        <div class="sessions">
+          <button class="session active">
+            <span class="session-name">проект AI-smolagents</span>
+            <span class="session-model">qwen2-coder-30b-a3b-instruct</span>
+          </button>
+          <button class="session">
+            <span class="session-name">Новый чат</span>
+            <span class="session-model">qwen2-coder-30b-a3b-instruct</span>
+          </button>
+          <button class="session">
+            <span class="session-name">про цвет фона</span>
+            <span class="session-model">qwen2-coder-30b-a3b-instruct</span>
+          </button>
+          <button class="session">
+            <span class="session-name">моковые данные</span>
+            <span class="session-model">qwen2-coder-30b-instruct</span>
+          </button>
+          <button class="session">
+            <span class="session-name">про MCP сервер</span>
+            <span class="session-model">qwen2-coder-30b-a3b-instruct</span>
+          </button>
+          <button class="session">
+            <span class="session-name">Последний</span>
+            <span class="session-model">gemma-2-9b-aibi-cat</span>
+          </button>
+          <button class="session">
+            <span class="session-name">session_1785505953882</span>
+            <span class="session-model">qwen2-coder-30b-a3b-instruct</span>
+          </button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <button class="icon-btn" title="Меню">
+            <svg viewBox="0 0 24 24" class="ico"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+          </button>
+          <h1>AI Ассистент</h1>
+          <span class="model-badge">qwen2-coder-30b-a3b-instruct</span>
+        </header>
+
+        <div class="chat" id="chat">
+          <div class="msg bot">
+            <div class="msg-body">
+              Привет! Я локальный ассистент проекта <b>AI-smolagents</b>. Могу читать файлы, править код и запускать команды.
+              <div class="msg-foot">14:02</div>
+            </div>
+          </div>
+
+          <div class="msg user">
+            <div class="msg-body">
+              Поменяй фон интерфейса — сейчас всё тёмно-синее, сделай как на картинке.
+              <div class="msg-foot">14:03</div>
+            </div>
+          </div>
+
+          <div class="msg bot">
+            <div class="msg-body">
+              Готово. Обновил токены темы в <code>frontend/src/index.css</code>:
+              <ul class="md-list">
+                <li><code>--bg</code> → <code>#1c1710</code></li>
+                <li><code>--chat-bg</code> → <code>#141009</code></li>
+                <li><code>--accent</code> → <code>#e0a83c</code></li>
+              </ul>
+              Интерфейс теперь выглядит так, как на референсе.
+              <div class="msg-foot">14:03</div>
+            </div>
+          </div>
+
+          <div class="msg user">
+            <div class="msg-body">
+              Проверь, что изменения применились на localhost:3000
+              <div class="msg-foot">14:04</div>
+            </div>
+          </div>
+
+          <div class="msg bot">
+            <div class="msg-body">
+              Vite подхватил стили по горячей перезагрузке, сервер не нужно перезапускать. Фон обновился.
+              <div class="msg-foot">14:04</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="composer">
+          <textarea id="input" rows="1" placeholder="Введите сообщение..."></textarea>
+          <button class="icon-btn mic" title="Голосовой ввод">
+            <svg viewBox="0 0 24 24" class="ico"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v4M8 23h8"/></svg>
+          </button>
+          <button class="send" id="send" title="Отправить">
+            <svg viewBox="0 0 24 24" class="ico"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+          </button>
+        </div>
+      </main>
+
+    </div>
+  </div>
+</div>
+
+<div class="hub">
+  <div class="hub-logo">42</div>
+  <div class="hub-label">ANSWER42 MCP</div>
+</div>
+
+<div class="controls">
+  <div class="seg">
+    <button id="btnHolo" class="active">Голограмма</button>
+    <button id="btnFlat">Обычный</button>
+  </div>
+  <label class="chk"><input type="checkbox" id="chkSparks" checked> Искры</label>
+  <label class="chk"><input type="checkbox" id="chkScan" checked> Скан-линии</label>
+  <label class="chk"><input type="checkbox" id="chkFloat" checked> Парение</label>
+  <label class="rng">Наклон <input type="range" id="rngTilt" min="0" max="16" value="7"></label>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
