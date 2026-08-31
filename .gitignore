@@ -25,3 +25,9 @@ Thumbs.db
 # Node
 node_modules/
 .next/
+
+# Мусорные артефакты
+d
+-p/
+Screenshot_*.png
+deepseek_text_*.txt
