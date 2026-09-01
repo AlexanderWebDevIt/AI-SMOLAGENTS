@@ -58,6 +58,44 @@
   transition: transform .55s cubic-bezier(.22,.61,.36,1);
 }
 
+/* --- Внутренние поверхности тоже полупрозрачные:
+   иначе непрозрачные сайдбар/чат полностью перекрывают стекло
+   и панель выглядит сплошной тёмно-коричневой --- */
+.app.holo-mode .sidebar {
+  background: rgba(34, 27, 18, .42);
+  border-right-color: rgba(240, 180, 41, .22);
+}
+.app.holo-mode .chat {
+  background: rgba(20, 16, 9, .30);
+}
+.app.holo-mode .chat-header {
+  background: rgba(34, 27, 18, .42);
+  border-bottom-color: rgba(240, 180, 41, .22);
+}
+.app.holo-mode .settings-header {
+  border-bottom-color: rgba(240, 180, 41, .22);
+}
+.app.holo-mode .column-title {
+  border-bottom-color: rgba(240, 180, 41, .18);
+}
+.app.holo-mode .provider-card,
+.app.holo-mode .model-item,
+.app.holo-mode .edit-form,
+.app.holo-mode .holo-section,
+.app.holo-mode .settings-message {
+  background: rgba(42, 33, 20, .40);
+  border-color: rgba(240, 180, 41, .20);
+}
+.app.holo-mode .provider-card.active,
+.app.holo-mode .model-item.active {
+  border-color: var(--holo-gold);
+}
+.app.holo-mode input,
+.app.holo-mode select,
+.app.holo-mode textarea {
+  background-color: rgba(20, 16, 9, .55);
+}
+
 @keyframes holo-float {
   from {
     transform: translate(var(--stage-x), var(--stage-y))
