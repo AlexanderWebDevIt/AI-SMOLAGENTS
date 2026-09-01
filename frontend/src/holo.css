@@ -97,6 +97,14 @@
   background-color: rgba(20, 16, 9, .55);
 }
 
+/* Пункты меню (ЧАТ / Документы / Настройки / Инструменты) — белый текст */
+.app.holo-mode .nav-item,
+.app.holo-mode .nav-item .nav-label,
+.app.holo-mode .nav-item:hover,
+.app.holo-mode .nav-item:hover .nav-label {
+  color: #fff;
+}
+
 @keyframes holo-float {
   from {
     transform: translate(var(--stage-x), var(--stage-y))
