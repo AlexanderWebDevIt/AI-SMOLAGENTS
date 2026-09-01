@@ -407,6 +407,17 @@ function App() {
         )}
       </main>
       </div>
+
+      {/* Плавающая кнопка-тумблер голограммы — всегда видна,
+          чтобы режим было легко найти и выключить */}
+      <button
+        className={`holo-fab ${holo.settings.enabled ? 'on' : ''}`}
+        onClick={() => holo.toggle('enabled')}
+        title={holo.settings.enabled ? 'Голограмма: ВКЛ (нажмите, чтобы выключить)' : 'Голограмма: ВЫКЛ (нажмите, чтобы включить)'}
+      >
+        <span className="holo-fab-icon">◐</span>
+        <span className="holo-fab-label">Голограмма</span>
+      </button>
     </>
   )
 }

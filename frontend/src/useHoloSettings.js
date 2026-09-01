@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 
-const KEY = 'ai-smolagents:holo'
+// v2: голограмма теперь ВКЛЮЧЕНА по умолчанию и управляется
+// видимой плавающей кнопкой на главном экране (не только в Настройках).
+// Ключ поднят до v2, чтобы сбросить старое сохранённое enabled:false.
+const KEY = 'ai-smolagents:holo:v2'
 
 const DEFAULTS = {
-  enabled: false,
+  enabled: true,
   sparks: true,
   scan: true,
   sheen: true,
