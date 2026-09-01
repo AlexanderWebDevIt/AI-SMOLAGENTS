@@ -5,18 +5,24 @@
 }
 
 :root {
-  --bg: #1a1a2e;
-  --sidebar-bg: #16213e;
-  --chat-bg: #0f0f23;
-  --card-bg: #1e1e3a;
-  --accent: #3b82f6;
-  --accent-hover: #2563eb;
-  --text: #e0e0e0;
-  --text-dim: #8888aa;
-  --border: #2a2a4a;
-  --user-bg: #2d2d5a;
-  --ai-bg: #1e1e3a;
-  --input-bg: #1e1e3a;
+  --bg: #1c1710;
+  --sidebar-bg: #221b12;
+  --chat-bg: #141009;
+  --card-bg: #2a2114;
+  --accent: #e0a83c;
+  --accent-hover: #c98f26;
+  --text: #f2e7d3;
+  --text-dim: #9c8b6e;
+  --border: #3d3120;
+  --user-bg: #453522;
+  --ai-bg: #2a2114;
+  --input-bg: #2a2114;
+
+  --holo-gold: #f0b429;
+  --holo-glow: rgba(240, 180, 41, .25);
+  --tilt: 6deg;
+  --stage-x: -110px;
+  --stage-y: -20px;
 }
 
 body {

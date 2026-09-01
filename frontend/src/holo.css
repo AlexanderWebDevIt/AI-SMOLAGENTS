@@ -1,0 +1,128 @@
+/* ============================================================
+   Голографический режим (переключаемый)
+   Включается через класс `holo-mode` на #root.
+   ============================================================ */
+
+/* --- Сцена фон --- */
+.holo-scene {
+  position: fixed;
+  inset: -40px;
+  background: url('/room.jpg') center / cover no-repeat;
+  filter: blur(5px) brightness(.82) saturate(1.05);
+  transform: scale(1.05);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* --- Слой искр (canvas) --- */
+.holo-sparks {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* --- Перспектива на корне --- */
+#root.holo-mode {
+  perspective: 1600px;
+  perspective-origin: 50% 45%;
+}
+
+/* --- Главный .app превращается в голограмму --- */
+.app.holo-mode {
+  position: relative;
+  z-index: 2;
+  width: min(1180px, 92vw);
+  height: min(700px, 84vh);
+  margin: auto;
+  transform: translate(var(--stage-x), var(--stage-y))
+             rotateX(calc(var(--tilt) * .55))
+             rotateY(calc(var(--tilt) * -1));
+  transform-style: preserve-3d;
+  border-radius: 18px;
+  overflow: hidden;
+  background: linear-gradient(155deg, rgba(42,33,20,.64), rgba(20,16,9,.74));
+  backdrop-filter: blur(15px) saturate(125%);
+  -webkit-backdrop-filter: blur(15px) saturate(125%);
+  border: 2px solid rgba(240, 180, 41, .55);
+  box-shadow:
+    0 40px 110px rgba(0, 0, 0, .45),
+    0 0 60px rgba(240, 180, 41, .25),
+    inset 0 1px 1px rgba(255, 225, 150, .40),
+    inset 0 -3px 8px rgba(120, 80, 0, .45),
+    inset 0 0 90px rgba(240, 180, 41, .08);
+  animation: holo-float 7.5s ease-in-out infinite alternate;
+  will-change: transform;
+  transition: transform .55s cubic-bezier(.22,.61,.36,1);
+}
+
+@keyframes holo-float {
+  from {
+    transform: translate(var(--stage-x), var(--stage-y))
+               rotateX(calc(var(--tilt) * .55))
+               rotateY(calc(var(--tilt) * -1))
+               translateY(0);
+  }
+  to {
+    transform: translate(var(--stage-x), var(--stage-y))
+               rotateX(calc(var(--tilt) * .5))
+               rotateY(calc(var(--tilt) * -1.05))
+               translateY(-9px);
+  }
+}
+
+/* Отключение парения */
+.app.holo-mode.no-float {
+  animation: none;
+}
+
+/* Скан-линии */
+.app.holo-mode::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  opacity: .3;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255,255,255,.04) 0 1px,
+    transparent 1px 3px
+  );
+  transition: opacity .3s ease;
+}
+.app.holo-mode.no-scan::before { opacity: 0; }
+
+/* Блик */
+.app.holo-mode::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+  background: linear-gradient(115deg, transparent 38%, rgba(255,255,255,.07) 47%, transparent 56%);
+  background-size: 260% 100%;
+  animation: holo-sheen 9s linear infinite;
+}
+.app.holo-mode.no-sheen::after { opacity: 0; }
+
+@keyframes holo-sheen {
+  from { background-position: 160% 0; }
+  to   { background-position: -60% 0; }
+}
+
+/* Тень под панелью */
+.app.holo-mode > .holo-shadow {
+  position: absolute;
+  left: 6%; right: 6%; bottom: -34px;
+  height: 60px;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,.55), transparent 70%);
+  filter: blur(14px);
+  z-index: -1;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app.holo-mode { animation: none; }
+  .app.holo-mode::after { animation: none; }
+}

@@ -7,6 +7,9 @@ import Settings from './Settings'
 import Documents from './components/Documents'
 import Tools from './components/Tools'
 import './App.css'
+import './holo.css'
+import Sparks from './components/Sparks'
+import { useHoloSettings } from './useHoloSettings'
 
 const API_URL = 'http://localhost:8000'
 
@@ -72,6 +75,11 @@ function App() {
   const inputCache = useRef({})
   const abortRef = useRef(null)
   const contextInfoRef = useRef(null)
+  const holo = useHoloSettings()
+
+  useEffect(() => {
+    document.getElementById('root')?.classList.toggle('holo-mode', holo.settings.enabled)
+  }, [holo.settings.enabled])
 
   useEffect(() => {
     messagesEnd.current?.scrollIntoView({ behavior: 'smooth' })
@@ -282,22 +290,33 @@ function App() {
     { text: 'Найди все Python файлы', icon: '🔍' },
   ]
 
+  const appClass = [
+    'app',
+    holo.settings.enabled && 'holo-mode',
+    holo.settings.enabled && !holo.settings.float && 'no-float',
+    holo.settings.enabled && !holo.settings.scan && 'no-scan',
+    holo.settings.enabled && !holo.settings.sheen && 'no-sheen',
+  ].filter(Boolean).join(' ')
+
   return (
-    <div className="app">
-      <Sidebar
-        sessions={sessions}
-        activeSession={activeSession}
-        onSessionSelect={handleSessionSelect}
-        onNewSession={handleNewSession}
-        onRenameSession={handleRenameSession}
-        onDeleteSession={handleDeleteSession}
-        currentPage={currentPage}
-        onPageChange={setCurrentPage}
-      />
+    <>
+      {holo.settings.enabled && <div className="holo-scene" aria-hidden="true" />}
+      {holo.settings.enabled && <Sparks on={holo.settings.sparks} />}
+      <div className={appClass}>
+        <Sidebar
+          sessions={sessions}
+          activeSession={activeSession}
+          onSessionSelect={handleSessionSelect}
+          onNewSession={handleNewSession}
+          onRenameSession={handleRenameSession}
+          onDeleteSession={handleDeleteSession}
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+        />
 
       <main className="chat">
         {currentPage === 'settings' && (
-          <Settings onBack={() => setCurrentPage('chat')} />
+          <Settings onBack={() => setCurrentPage('chat')} holo={holo} />
         )}
         {currentPage === 'documents' && (
           <Documents onBack={() => setCurrentPage('chat')} />
@@ -387,7 +406,8 @@ function App() {
           </>
         )}
       </main>
-    </div>
+      </div>
+    </>
   )
 }
 
