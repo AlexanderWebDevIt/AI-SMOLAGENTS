@@ -345,11 +345,8 @@ export default function Settings({ onBack, holo }) {
       {holo && (
         <section className="holo-section">
           <h2>Голограмма</h2>
-          <p className="holo-hint">
-            Превращает интерфейс в парящую золотую панель с фоном-сценой.
-          </p>
 
-          <label className="holo-row">
+          <label className="holo-row holo-master">
             <input
               type="checkbox"
               checked={holo.settings.enabled}
@@ -358,39 +355,42 @@ export default function Settings({ onBack, holo }) {
             <span>Включить голографический режим</span>
           </label>
 
-          <div className={holo.settings.enabled ? 'holo-controls' : 'holo-controls holo-disabled'}>
-            <label className="holo-row">
-              <input type="checkbox" checked={holo.settings.sparks} onChange={() => holo.toggle('sparks')} />
-              <span>Искры</span>
-            </label>
-            <label className="holo-row">
-              <input type="checkbox" checked={holo.settings.scan} onChange={() => holo.toggle('scan')} />
-              <span>Скан-линии</span>
-            </label>
-            <label className="holo-row">
-              <input type="checkbox" checked={holo.settings.sheen} onChange={() => holo.toggle('sheen')} />
-              <span>Блик</span>
-            </label>
-            <label className="holo-row">
-              <input type="checkbox" checked={holo.settings.float} onChange={() => holo.toggle('float')} />
-              <span>Парение</span>
-            </label>
-            <label className="holo-row">
-              <span>Наклон</span>
-              <input type="range" min="0" max="16" step="1" value={holo.settings.tilt} onChange={e => holo.update({ tilt: +e.target.value })} />
-              <span className="holo-val">{holo.settings.tilt}°</span>
-            </label>
-            <label className="holo-row">
-              <span>Сдвиг X</span>
-              <input type="range" min="-500" max="500" step="10" value={holo.settings.stageX} onChange={e => holo.update({ stageX: +e.target.value })} />
-              <span className="holo-val">{holo.settings.stageX}px</span>
-            </label>
-            <label className="holo-row">
-              <span>Сдвиг Y</span>
-              <input type="range" min="-350" max="350" step="10" value={holo.settings.stageY} onChange={e => holo.update({ stageY: +e.target.value })} />
-              <span className="holo-val">{holo.settings.stageY}px</span>
-            </label>
-          </div>
+          <details className="holo-advanced">
+            <summary>Дополнительно</summary>
+            <div className="holo-controls">
+              <label className="holo-row">
+                <input type="checkbox" checked={holo.settings.sparks} onChange={() => holo.toggle('sparks')} />
+                <span>Искры</span>
+              </label>
+              <label className="holo-row">
+                <input type="checkbox" checked={holo.settings.scan} onChange={() => holo.toggle('scan')} />
+                <span>Скан-линии</span>
+              </label>
+              <label className="holo-row">
+                <input type="checkbox" checked={holo.settings.sheen} onChange={() => holo.toggle('sheen')} />
+                <span>Блик</span>
+              </label>
+              <label className="holo-row">
+                <input type="checkbox" checked={holo.settings.float} onChange={() => holo.toggle('float')} />
+                <span>Парение</span>
+              </label>
+              <label className="holo-row">
+                <span>Наклон</span>
+                <input type="range" min="0" max="16" step="1" value={holo.settings.tilt} onChange={e => holo.update({ tilt: +e.target.value })} />
+                <span className="holo-val">{holo.settings.tilt}°</span>
+              </label>
+              <label className="holo-row">
+                <span>Сдвиг X</span>
+                <input type="range" min="-500" max="500" step="10" value={holo.settings.stageX} onChange={e => holo.update({ stageX: +e.target.value })} />
+                <span className="holo-val">{holo.settings.stageX}px</span>
+              </label>
+              <label className="holo-row">
+                <span>Сдвиг Y</span>
+                <input type="range" min="-350" max="350" step="10" value={holo.settings.stageY} onChange={e => holo.update({ stageY: +e.target.value })} />
+                <span className="holo-val">{holo.settings.stageY}px</span>
+              </label>
+            </div>
+          </details>
         </section>
       )}
     </div>

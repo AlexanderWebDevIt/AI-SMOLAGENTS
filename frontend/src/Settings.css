@@ -6,6 +6,7 @@
   flex-direction: column;
   height: 100%;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .settings-header {
@@ -55,10 +56,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   margin-bottom: 16px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .column-title h2 {
@@ -79,17 +83,21 @@
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .model-search {
   background: var(--bg);
   border: 1px solid var(--border);
   color: var(--text);
-  padding: 8px 12px;
+  padding: 7px 10px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 12px;
   outline: none;
-  width: 180px;
+  min-width: 0;
+  max-width: 220px;
+  flex: 1 1 140px;
 }
 
 .model-search:focus {
@@ -253,9 +261,9 @@
   background: var(--bg);
   border: 1px solid var(--border);
   color: var(--text);
-  padding: 10px 12px;
+  padding: 9px 12px;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 13px;
   outline: none;
 }
 
@@ -375,10 +383,10 @@
   color: var(--holo-gold);
   margin-bottom: 6px;
 }
-.holo-hint {
-  font-size: 12.5px;
-  color: var(--text-dim);
-  margin-bottom: 16px;
+.holo-master {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
 }
 .holo-row {
   display: flex;
@@ -390,6 +398,7 @@
 }
 .holo-row input[type="range"] {
   flex: 1;
+  min-width: 0;
   accent-color: var(--holo-gold);
   cursor: pointer;
 }
@@ -406,15 +415,26 @@
   color: var(--text-dim);
   font-variant-numeric: tabular-nums;
 }
+.holo-advanced {
+  margin-top: 12px;
+}
+.holo-advanced summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-dim);
+  user-select: none;
+  padding: 4px 0;
+  list-style: none;
+}
+.holo-advanced summary::-webkit-details-marker { display: none; }
+.holo-advanced summary::before { content: '▸ '; }
+.holo-advanced[open] summary::before { content: '▾ '; }
+.holo-advanced summary:hover { color: var(--text); }
 .holo-controls {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin-top: 10px;
-  padding-top: 14px;
+  margin-top: 8px;
+  padding-top: 12px;
   border-top: 1px solid var(--border);
-}
-.holo-disabled {
-  opacity: .45;
-  pointer-events: none;
 }
