@@ -30,6 +30,7 @@ body {
   -webkit-font-smoothing: antialiased;
   background: var(--bg);
   color: var(--text);
+  overflow: hidden;
 }
 
 #root {

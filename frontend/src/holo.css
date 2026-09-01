@@ -29,6 +29,7 @@
   justify-content: center;
   perspective: 1600px;
   perspective-origin: 50% 45%;
+  overflow: hidden;
 }
 
 /* --- Главный .app превращается в голограмму --- */
