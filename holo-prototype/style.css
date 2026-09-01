@@ -13,8 +13,10 @@
   --input-bg: #2a2114;
 
   --holo-gold: #f0b429;
-  --holo-glow: rgba(240, 180, 41, .30);
+  --holo-glow: rgba(240, 180, 41, .18);
   --tilt: 7deg;
+  --stage-x: -110px;
+  --stage-y: -20px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -32,9 +34,9 @@ body {
 .scene {
   position: fixed;
   inset: -40px;
-  background: url('assets/scene.png') center / cover no-repeat;
-  filter: blur(7px) brightness(.45) saturate(1.15);
-  transform: scale(1.08);
+  background: url('assets/room.jpg') center / cover no-repeat;
+  filter: blur(5px) brightness(.82) saturate(1.05);
+  transform: scale(1.05);
   transition: opacity .45s ease;
   z-index: 0;
 }
@@ -51,6 +53,7 @@ body {
   z-index: 2;
   perspective: 1600px;
   perspective-origin: 50% 45%;
+  transform: translate(var(--stage-x), var(--stage-y));
 }
 
 .holo-stage {
@@ -61,14 +64,16 @@ body {
   overflow: hidden;
   transform: rotateX(calc(var(--tilt) * .55)) rotateY(calc(var(--tilt) * -1));
   transform-style: preserve-3d;
-  background: linear-gradient(155deg, rgba(42,33,20,.90), rgba(20,16,9,.94));
-  backdrop-filter: blur(24px) saturate(135%);
-  -webkit-backdrop-filter: blur(24px) saturate(135%);
-  border: 1px solid rgba(240, 180, 41, .34);
+  background: linear-gradient(155deg, rgba(42,33,20,.64), rgba(20,16,9,.74));
+  backdrop-filter: blur(15px) saturate(125%);
+  -webkit-backdrop-filter: blur(15px) saturate(125%);
+  border: 2px solid rgba(240, 180, 41, .55);
   box-shadow:
-    0 50px 120px rgba(0, 0, 0, .60),
-    0 0 80px var(--holo-glow),
-    inset 0 0 120px rgba(240, 180, 41, .12);
+    0 40px 110px rgba(0, 0, 0, .45),
+    0 0 60px rgba(240, 180, 41, .25),
+    inset 0 1px 1px rgba(255, 225, 150, .40),
+    inset 0 -3px 8px rgba(120, 80, 0, .45),
+    inset 0 0 90px rgba(240, 180, 41, .08);
   transition: transform .55s cubic-bezier(.22,.61,.36,1),
               box-shadow .45s ease, border-color .45s ease;
   will-change: transform;
@@ -394,11 +399,12 @@ code {
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 0 34px rgba(240,180,41,.34), inset 0 0 26px rgba(0,0,0,.7);
 }
-.hub-label {
-  font-size: 10.5px;
-  letter-spacing: 1.1px;
-  color: rgba(240,180,41,.8);
-  font-weight: 600;
+.hub-name {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  color: var(--holo-gold);
+  text-shadow: 0 0 14px rgba(240,180,41,.5);
 }
 
 .controls {
@@ -459,7 +465,7 @@ body.mode-flat .holo-stage {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
-body.mode-flat .stage-wrap { perspective: none; }
+body.mode-flat .stage-wrap { perspective: none; transform: none; }
 body.mode-flat .sheen,
 body.mode-flat .scanlines { opacity: 0; }
 

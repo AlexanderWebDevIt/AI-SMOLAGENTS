@@ -172,6 +172,16 @@
     document.documentElement.style.setProperty('--tilt', this.value + 'deg');
   });
 
+  var rngX = document.getElementById('rngX');
+  var rngY = document.getElementById('rngY');
+  function applyShift() {
+    document.documentElement.style.setProperty('--stage-x', rngX.value + 'px');
+    document.documentElement.style.setProperty('--stage-y', rngY.value + 'px');
+  }
+  rngX.addEventListener('input', applyShift);
+  rngY.addEventListener('input', applyShift);
+  applyShift();
+
   document.body.classList.add('animate-float');
 
   window.addEventListener('resize', function () {
